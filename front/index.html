@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CRUD SOAP - XML</title>
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- vkBeautify (CDN) - necesario para formateo XML -->
+    <script src="https://cdn.jsdelivr.net/gh/vkiryukhin/vkBeautify/vkbeautify.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>CRUD SOAP — XML</h1>
+      <p class="subtitle">Interfaz para agregar, actualizar, eliminar, listar y generar reportes.</p>
+    </header>
+
+    <section class="grid">
+      <form id="agregarForm" class="card">
+        <h2>Agregar</h2>
+        <input name="nombre" placeholder="Nombre" />
+        <input name="precio" placeholder="Precio" />
+        <input name="cantidad" placeholder="Cantidad" />
+        <button type="submit" class="btn primary">Agregar</button>
+      </form>
+
+      <form id="actualizarForm" class="card">
+        <h2>Actualizar</h2>
+        <input name="id" placeholder="ID" />
+        <input name="nombre" placeholder="Nuevo nombre" />
+        <input name="precio" placeholder="Nuevo precio" />
+        <input name="cantidad" placeholder="Nueva cantidad" />
+        <button type="submit" class="btn warning">Actualizar</button>
+      </form>
+
+      <form id="eliminarForm" class="card">
+        <h2>Eliminar</h2>
+        <input name="id" placeholder="ID a eliminar" />
+        <button type="submit" class="btn danger">Eliminar</button>
+      </form>
+
+      <div class="card actions">
+        <h2>Listar y Reportes</h2>
+        <div class="btn-row">
+          <button id="btnListar" class="btn outline">Listar XML</button>
+          <button id="btnReporte" class="btn outline">Generar Reporte</button>
+        </div>
+
+        <div id="reporteVisual" class="report" aria-hidden="true">
+          <h3>Resumen del Reporte</h3>
+          <p><b>Total de productos:</b> <span id="totalProductos"></span></p>
+          <p><b>Suma total de precios:</b> <span id="sumaPrecios"></span></p>
+          <h4>Porcentaje por producto</h4>
+          <ul id="listaPorcentajes" class="percent-list"></ul>
+        </div>
+      </div>
+
+      
+    </section>
+
+    <section class="xml-section card">
+      <h2>Árbol XML</h2>
+      <textarea id="xmlArea" readonly></textarea>
+    </section>
+
+    <footer class="footer">
+      <small>Servicio SOAP local: <code>http://127.0.0.1:8000</code></small>
+    </footer>
+  </main>
+
+  <!-- Tu JS: todo el comportamiento -->
+  <script src="app.js"></script>
+</body>
+</html>
