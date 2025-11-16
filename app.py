@@ -158,6 +158,9 @@ app = CORSWrapper(WsgiApplication(application))
 if __name__ == "__main__":
     from wsgiref.simple_server import make_server
     print("Servidor SOAP en http://127.0.0.1:8000/?wsdl")
-    server = make_server("0.0.0.0", 8000, app)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    server = make_server("0.0.0.0", port, app)
+
     server.serve_forever()
 
