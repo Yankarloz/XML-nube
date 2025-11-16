@@ -2,8 +2,13 @@ from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from lxml import etree
+import os
+import mimetypes
 
-XML_FILE = "xml/datos.xml"
+BASE_DIR = os.path.dirname(__file__)
+XML_FILE = os.path.join(BASE_DIR, "xml", "datos.xml")
+FRONT_DIR = os.path.join(BASE_DIR, "front")
+
 
 def cargar_xml():
     parser = etree.XMLParser(remove_blank_text=True)
@@ -152,13 +157,62 @@ application = Application(
     out_protocol=Soap11()
 )
 
-app = CORSWrapper(WsgiApplication(application))
+
+# --- Static file serving helpers -----------------------------------------
+def _serve_file(environ, start_response, rel_path):
+    # rel_path is relative to FRONT_DIR, no leading '/'
+    full_path = os.path.join(FRONT_DIR, rel_path)
+    if os.path.isdir(full_path):
+        full_path = os.path.join(full_path, "index.html")
+
+    if not os.path.exists(full_path):
+        start_response("404 Not Found", [("Content-Type", "text/plain")])
+        return [b"Not Found"]
+
+    ctype, _ = mimetypes.guess_type(full_path)
+    if not ctype:
+        ctype = "application/octet-stream"
+
+    with open(full_path, "rb") as f:
+        data = f.read()
+
+    headers = [("Content-Type", ctype), ("Content-Length", str(len(data)))]
+    start_response("200 OK", headers)
+    return [data]
+
+
+# mount SOAP at /soap and serve static files from / (front/)
+soap_app = WsgiApplication(application)
+
+
+def dispatcher(environ, start_response):
+    path = environ.get("PATH_INFO", "") or "/"
+    # Serve SOAP under /soap
+    if path.startswith("/soap"):
+        # Adjust PATH_INFO so the SOAP app sees the remainder
+        new_environ = environ.copy()
+        new_environ["SCRIPT_NAME"] = new_environ.get("SCRIPT_NAME", "") + "/soap"
+        new_environ["PATH_INFO"] = path[len("/soap"):]
+        if new_environ["PATH_INFO"] == "":
+            new_environ["PATH_INFO"] = "/"
+        return soap_app(new_environ, start_response)
+
+    # Serve root as index.html
+    if path == "/" or path == "":
+        return _serve_file(environ, start_response, "index.html")
+
+    # Serve other static files from front/
+    # strip leading '/'
+    rel = path.lstrip("/")
+    return _serve_file(environ, start_response, rel)
+
+
+app = CORSWrapper(dispatcher)
 
 
 if __name__ == "__main__":
     from wsgiref.simple_server import make_server
-    print("Servidor SOAP en http://127.0.0.1:8000/?wsdl")
-    import os
+    print("Servidor en http://127.0.0.1:8000/ (static) y /soap?wsdl para SOAP")
     port = int(os.environ.get("PORT", 8000))
     server = make_server("0.0.0.0", port, app)
 
