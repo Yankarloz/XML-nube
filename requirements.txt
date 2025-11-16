@@ -1,3 +1,4 @@
-spyne
-lxml
-gunicorn
+spyne==2.14.0
+lxml==6.0.2
+gunicorn==23.0.0
+six==1.16.0
