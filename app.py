@@ -209,16 +209,15 @@ def static_proxy(path):
 
 soap_app = CORSWrapper(WsgiApplication(application))
 
-# / → SOAP
-# /front → FRONTEND
-app = DispatcherMiddleware(soap_app, {
-    "/front": front
+# Serve FRONTEND at / and SOAP under /soap
+app = DispatcherMiddleware(front, {
+    "/soap": soap_app
 })
 
 if __name__ == "__main__":
     print("🚀 Servidor iniciado")
     port = int(os.environ.get("PORT", 8000))
-    print(f"SOAP WSDL → http://127.0.0.1:{port}/?wsdl")
-    print(f"FRONTEND → http://127.0.0.1:{port}/front/index.html")
+    print(f"SOAP WSDL → http://127.0.0.1:{port}/soap?wsdl")
+    print(f"FRONTEND → http://127.0.0.1:{port}/")
     
     run_simple("0.0.0.0", port, app, use_reloader=True)
