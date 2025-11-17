@@ -1,7 +1,7 @@
 /* app.js - todo el comportamiento JS del frontend */
 
 /* ENDPOINT del servicio SOAP */
-const SOAP_URL = "http://127.0.0.1:8000";
+const SOAP_URL = window.location.origin;
 
 /* helpers */
 async function enviarSOAP(xmlBody) {
@@ -46,6 +46,37 @@ function extraerResultadoPorTag(respuestaText, tag) {
   return m2 ? m2[1] : null;
 }
 
+// Extrae XML dentro del Body SOAP buscando las etiquetas <productos> o <reporte>
+function extraerDesdeBody(respuestaText) {
+  // intentamos capturar el Body completo (con o sin namespace)
+  const bodyRegex = /<[^:>]*:Body[^>]*>([\s\S]*?)<\/[^^:>]*:Body>/i;
+  const bodyMatch = respuestaText.match(bodyRegex);
+  const body = bodyMatch ? bodyMatch[1] : respuestaText;
+
+  // buscar el XML de productos
+  const prodIndex = body.indexOf('<productos');
+  if (prodIndex !== -1) {
+    // extraer desde <productos hasta </productos>
+    const endTag = '</productos>';
+    const endIndex = body.indexOf(endTag, prodIndex);
+    if (endIndex !== -1) {
+      return body.substring(prodIndex, endIndex + endTag.length);
+    }
+  }
+
+  // buscar reporte
+  const repIndex = body.indexOf('<reporte');
+  if (repIndex !== -1) {
+    const endTag = '</reporte>';
+    const endIndex = body.indexOf(endTag, repIndex);
+    if (endIndex !== -1) {
+      return body.substring(repIndex, endIndex + endTag.length);
+    }
+  }
+
+  return null;
+}
+
 /* DOM helpers */
 function $id(id){ return document.getElementById(id); }
 
@@ -59,7 +90,10 @@ async function onAgregar(e) {
                   <ser:cantidad>${f.get("cantidad")}</ser:cantidad>
                 </ser:agregar>`;
   const res = await enviarSOAP(body);
-  alert("Respuesta:\n" + res);
+  // Extraer mensaje sencillo del SOAP
+  let msg = extraerResultadoPorTag(res, "agregarResult") || extraerResultadoPorTag(res, "agregarResponse") || extraerDesdeBody(res) || res;
+  msg = desescaparXML(msg).replace(/<[^>]+>/g, "").trim();
+  alert("Respuesta:\n" + msg);
 }
 
 async function onActualizar(e) {
@@ -72,7 +106,9 @@ async function onActualizar(e) {
                   <ser:cantidad>${f.get("cantidad")}</ser:cantidad>
                 </ser:actualizar>`;
   const res = await enviarSOAP(body);
-  alert("Respuesta:\n" + res);
+  let msg = extraerResultadoPorTag(res, "actualizarResult") || extraerResultadoPorTag(res, "actualizarResponse") || extraerDesdeBody(res) || res;
+  msg = desescaparXML(msg).replace(/<[^>]+>/g, "").trim();
+  alert("Respuesta:\n" + msg);
 }
 
 async function onEliminar(e) {
@@ -82,18 +118,25 @@ async function onEliminar(e) {
                   <ser:producto_id>${f.get("id")}</ser:producto_id>
                 </ser:eliminar>`;
   const res = await enviarSOAP(body);
-  alert("Respuesta:\n" + res);
+  let msg = extraerResultadoPorTag(res, "eliminarResult") || extraerResultadoPorTag(res, "eliminarResponse") || extraerDesdeBody(res) || res;
+  msg = desescaparXML(msg).replace(/<[^>]+>/g, "").trim();
+  alert("Respuesta:\n" + msg);
 }
 
 async function onListar() {
   const res = await enviarSOAP(`<ser:listar/>`);
-  const contenido = extraerResultadoPorTag(res, "listarResult");
+  let contenido = extraerResultadoPorTag(res, "listarResult");
+  if (!contenido) contenido = extraerResultadoPorTag(res, "listarResponse");
+  if (!contenido) contenido = extraerDesdeBody(res);
+
   $id("xmlArea").value = contenido ? formatearXML(desescaparXML(contenido)) : "No se pudo procesar la respuesta de listar.";
 }
 
 async function onReporte() {
   const res = await enviarSOAP(`<ser:reporte/>`);
-  const contenido = extraerResultadoPorTag(res, "reporteResult");
+  let contenido = extraerResultadoPorTag(res, "reporteResult");
+  if (!contenido) contenido = extraerResultadoPorTag(res, "reporteResponse");
+  if (!contenido) contenido = extraerDesdeBody(res);
   if (!contenido) {
     $id("xmlArea").value = "No se pudo procesar el reporte.";
     return;

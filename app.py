@@ -1,30 +1,49 @@
 from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
-from lxml import etree
+import xml.etree.ElementTree as ET
+from xml.dom.minidom import parseString
 import os
-import mimetypes
 
-BASE_DIR = os.path.dirname(__file__)
+# ==========================================================
+#   RUTA CORRECTA DEL XML (FUNCIONA EN WINDOWS Y RENDER)
+# ==========================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 XML_FILE = os.path.join(BASE_DIR, "xml", "datos.xml")
 FRONT_DIR = os.path.join(BASE_DIR, "front")
 
-
 def cargar_xml():
-    parser = etree.XMLParser(remove_blank_text=True)
-    return etree.parse(XML_FILE, parser)
+    return ET.parse(XML_FILE)
 
 
 def guardar_xml(tree):
-    tree.write(
-        XML_FILE,
-        pretty_print=True,
-        xml_declaration=True,
-        encoding="UTF-8"
-    )
+    # Use ElementTree.indent to produce consistent pretty XML without
+    # the extra blank lines/minidom artifacts. Write with XML declaration.
+    try:
+        ET.indent(tree, space="\t")
+    except Exception:
+        # fallback: no-op if indent not available
+        pass
+    tree.write(XML_FILE, encoding="utf-8", xml_declaration=True)
 
 
+def _safe_float(value):
+    try:
+        if value is None:
+            return 0.0
+        # strip if it's a string
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                return 0.0
+        return float(value)
+    except Exception:
+        return 0.0
 
+# ==========================================================
+#   CORS
+# ==========================================================
 
 class CORSWrapper(object):
     def __init__(self, app):
@@ -49,12 +68,22 @@ class CORSWrapper(object):
         return self.app(environ, cors_start_response)
 
 
+# ==========================================================
+#   SERVICIO SOAP
+# ==========================================================
+
 class CRUDService(ServiceBase):
 
     @rpc(_returns=Unicode)
     def listar(ctx):
         tree = cargar_xml()
-        return etree.tostring(tree.getroot(), pretty_print=True, encoding="unicode")
+        # indent the tree for a consistent readable output
+        try:
+            ET.indent(tree, space="\t")
+        except Exception:
+            pass
+        return ET.tostring(tree.getroot(), encoding="unicode")
+
 
     @rpc(Unicode, Unicode, Unicode, _returns=Unicode)
     def agregar(ctx, nombre, precio, cantidad):
@@ -70,11 +99,11 @@ class CRUDService(ServiceBase):
 
         nuevo_id = max(ids) + 1 if ids else 1
 
-        nuevo = etree.SubElement(root, "producto")
+        nuevo = ET.SubElement(root, "producto")
         nuevo.set("id", str(nuevo_id))
-        etree.SubElement(nuevo, "nombre").text = nombre
-        etree.SubElement(nuevo, "precio").text = precio
-        etree.SubElement(nuevo, "cantidad").text = cantidad
+        ET.SubElement(nuevo, "nombre").text = nombre
+        ET.SubElement(nuevo, "precio").text = precio
+        ET.SubElement(nuevo, "cantidad").text = cantidad
 
         guardar_xml(tree)
         return "Producto agregado"
@@ -92,9 +121,6 @@ class CRUDService(ServiceBase):
 
         return "ID no encontrado"
 
-    # -------------------------------------------------
-    # 🔥 AHORA SÍ — MÉTODO ACTUALIZAR DENTRO DE LA CLASE
-    # -------------------------------------------------
     @rpc(Integer, Unicode, Unicode, Unicode, _returns=Unicode)
     def actualizar(ctx, producto_id, nombre, precio, cantidad):
         tree = cargar_xml()
@@ -117,38 +143,45 @@ class CRUDService(ServiceBase):
 
         return "ID no encontrado"
 
-    # -------------------------------------------------
-    # 🔥 MÉTODO REPORTE DENTRO DE LA CLASE
-    # -------------------------------------------------
     @rpc(_returns=Unicode)
     def reporte(ctx):
         tree = cargar_xml()
         root = tree.getroot()
 
         total_productos = len(root.findall("producto"))
-        total_precios = sum(float(p.find("precio").text) for p in root.findall("producto"))
+        total_precios = sum(_safe_float(p.find("precio").text if p.find("precio") is not None else None) for p in root.findall("producto"))
 
-        reporte = etree.Element("reporte")
-        etree.SubElement(reporte, "total_productos").text = str(total_productos)
-        etree.SubElement(reporte, "suma_total_precios").text = str(total_precios)
+        reporte = ET.Element("reporte")
+        ET.SubElement(reporte, "total_productos").text = str(total_productos)
+        ET.SubElement(reporte, "suma_total_precios").text = str(total_precios)
 
-        porcentajes = etree.SubElement(reporte, "porcentajes")
+        porcentajes = ET.SubElement(reporte, "porcentajes")
 
         for p in root.findall("producto"):
-            precio = float(p.find("precio").text)
+            precio = _safe_float(p.find("precio").text if p.find("precio") is not None else None)
             porc = (precio / total_precios) * 100 if total_precios else 0
 
-            nodo = etree.SubElement(porcentajes, "producto")
+            nodo = ET.SubElement(porcentajes, "producto")
             nodo.set("id", p.get("id"))
-            etree.SubElement(nodo, "nombre").text = p.find("nombre").text
-            etree.SubElement(nodo, "precio").text = str(precio)
-            etree.SubElement(nodo, "porcentaje").text = f"{porc:.2f}"
+            nombre_node = p.find("nombre")
+            nombre_text = nombre_node.text if (nombre_node is not None and nombre_node.text) else "(sin nombre)"
+            ET.SubElement(nodo, "nombre").text = nombre_text
+            ET.SubElement(nodo, "precio").text = str(precio)
+            ET.SubElement(nodo, "porcentaje").text = f"{porc:.2f}"
 
-        return etree.tostring(reporte, pretty_print=True, encoding="unicode")
+        try:
+            ET.indent(reporte, space="\t")
+        except Exception:
+            pass
+        return ET.tostring(reporte, encoding="unicode")
 
+
+# ==========================================================
+#   WSGI + FRONTEND
+# ==========================================================
 
 # -------------------------------------------------
-# WSGI
+# SOAP Application
 # -------------------------------------------------
 application = Application(
     [CRUDService],
@@ -158,63 +191,34 @@ application = Application(
 )
 
 
-# --- Static file serving helpers -----------------------------------------
-def _serve_file(environ, start_response, rel_path):
-    # rel_path is relative to FRONT_DIR, no leading '/'
-    full_path = os.path.join(FRONT_DIR, rel_path)
-    if os.path.isdir(full_path):
-        full_path = os.path.join(full_path, "index.html")
-
-    if not os.path.exists(full_path):
-        start_response("404 Not Found", [("Content-Type", "text/plain")])
-        return [b"Not Found"]
-
-    ctype, _ = mimetypes.guess_type(full_path)
-    if not ctype:
-        ctype = "application/octet-stream"
-
-    with open(full_path, "rb") as f:
-        data = f.read()
-
-    headers = [("Content-Type", ctype), ("Content-Length", str(len(data)))]
-    start_response("200 OK", headers)
-    return [data]
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.serving import run_simple
+from flask import Flask, send_from_directory
 
 
-# mount SOAP at /soap and serve static files from / (front/)
-soap_app = WsgiApplication(application)
+front = Flask(__name__, static_folder=FRONT_DIR, template_folder=FRONT_DIR)
+
+@front.route("/")
+def home():
+    return send_from_directory(FRONT_DIR, "index.html")
+
+@front.route("/<path:path>")
+def static_proxy(path):
+    return send_from_directory(FRONT_DIR, path)
 
 
-def dispatcher(environ, start_response):
-    path = environ.get("PATH_INFO", "") or "/"
-    # Serve SOAP under /soap
-    if path.startswith("/soap"):
-        # Adjust PATH_INFO so the SOAP app sees the remainder
-        new_environ = environ.copy()
-        new_environ["SCRIPT_NAME"] = new_environ.get("SCRIPT_NAME", "") + "/soap"
-        new_environ["PATH_INFO"] = path[len("/soap"):]
-        if new_environ["PATH_INFO"] == "":
-            new_environ["PATH_INFO"] = "/"
-        return soap_app(new_environ, start_response)
+soap_app = CORSWrapper(WsgiApplication(application))
 
-    # Serve root as index.html
-    if path == "/" or path == "":
-        return _serve_file(environ, start_response, "index.html")
-
-    # Serve other static files from front/
-    # strip leading '/'
-    rel = path.lstrip("/")
-    return _serve_file(environ, start_response, rel)
-
-
-app = CORSWrapper(dispatcher)
-
+# / → SOAP
+# /front → FRONTEND
+app = DispatcherMiddleware(soap_app, {
+    "/front": front
+})
 
 if __name__ == "__main__":
-    from wsgiref.simple_server import make_server
-    print("Servidor en http://127.0.0.1:8000/ (static) y /soap?wsdl para SOAP")
+    print("🚀 Servidor iniciado")
     port = int(os.environ.get("PORT", 8000))
-    server = make_server("0.0.0.0", port, app)
-
-    server.serve_forever()
-
+    print(f"SOAP WSDL → http://127.0.0.1:{port}/?wsdl")
+    print(f"FRONTEND → http://127.0.0.1:{port}/front/index.html")
+    
+    run_simple("0.0.0.0", port, app, use_reloader=True)
