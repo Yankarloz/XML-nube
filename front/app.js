@@ -1,7 +1,8 @@
 /* app.js - todo el comportamiento JS del frontend */
 
 /* ENDPOINT del servicio SOAP */
-const SOAP_URL = window.location.origin;
+// The SOAP app is mounted at /soap (server serves frontend at /)
+const SOAP_URL = window.location.origin + "/soap";
 
 /* helpers */
 async function enviarSOAP(xmlBody) {
