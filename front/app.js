@@ -1,10 +1,5 @@
-/* app.js - todo el comportamiento JS del frontend */
-
-/* ENDPOINT del servicio SOAP */
-// The SOAP app is mounted at /soap (server serves frontend at /)
 const SOAP_URL = window.location.origin + "/soap";
 
-/* helpers */
 async function enviarSOAP(xmlBody) {
   const res = await fetch(SOAP_URL, {
     method: "POST",
@@ -35,29 +30,23 @@ function formatearXML(xmlString) {
   }
 }
 
-/* parseo seguro compatible con namespaces */
 function extraerResultadoPorTag(respuestaText, tag) {
-  // captura <ns:tag ...>...</ns:tag>
+
   const regex = new RegExp(`<[^:>]*:${tag}[^>]*>([\\s\\S]*?)<\\/[^^:>]*:${tag}>`);
   const m = respuestaText.match(regex);
   if (m) return m[1];
-  // fallback sin namespace
   const regex2 = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`);
   const m2 = respuestaText.match(regex2);
   return m2 ? m2[1] : null;
 }
 
-// Extrae XML dentro del Body SOAP buscando las etiquetas <productos> o <reporte>
 function extraerDesdeBody(respuestaText) {
-  // intentamos capturar el Body completo (con o sin namespace)
   const bodyRegex = /<[^:>]*:Body[^>]*>([\s\S]*?)<\/[^^:>]*:Body>/i;
   const bodyMatch = respuestaText.match(bodyRegex);
   const body = bodyMatch ? bodyMatch[1] : respuestaText;
 
-  // buscar el XML de productos
   const prodIndex = body.indexOf('<productos');
   if (prodIndex !== -1) {
-    // extraer desde <productos hasta </productos>
     const endTag = '</productos>';
     const endIndex = body.indexOf(endTag, prodIndex);
     if (endIndex !== -1) {
@@ -65,7 +54,6 @@ function extraerDesdeBody(respuestaText) {
     }
   }
 
-  // buscar reporte
   const repIndex = body.indexOf('<reporte');
   if (repIndex !== -1) {
     const endTag = '</reporte>';
@@ -78,10 +66,8 @@ function extraerDesdeBody(respuestaText) {
   return null;
 }
 
-/* DOM helpers */
 function $id(id){ return document.getElementById(id); }
 
-/* Handlers principales */
 async function onAgregar(e) {
   e.preventDefault();
   const f = new FormData(e.target);
@@ -91,7 +77,6 @@ async function onAgregar(e) {
                   <ser:cantidad>${f.get("cantidad")}</ser:cantidad>
                 </ser:agregar>`;
   const res = await enviarSOAP(body);
-  // Extraer mensaje sencillo del SOAP
   let msg = extraerResultadoPorTag(res, "agregarResult") || extraerResultadoPorTag(res, "agregarResponse") || extraerDesdeBody(res) || res;
   msg = desescaparXML(msg).replace(/<[^>]+>/g, "").trim();
   alert("Respuesta:\n" + msg);
@@ -146,7 +131,6 @@ async function onReporte() {
   const xmlStr = desescaparXML(contenido);
   $id("xmlArea").value = formatearXML(xmlStr);
 
-  // parsear y mostrar resumen visual
   const parser = new DOMParser();
   const xml = parser.parseFromString(xmlStr, "application/xml");
 
@@ -169,7 +153,6 @@ async function onReporte() {
   $id("reporteVisual").style.display = "block";
 }
 
-/* pequeña función para escapar texto mostrado en HTML */
 function escapeHtml(s) {
   return String(s)
     .replaceAll("&","&amp;")
@@ -177,7 +160,6 @@ function escapeHtml(s) {
     .replaceAll(">","&gt;");
 }
 
-/* Inicializador */
 function init() {
   $id("agregarForm").addEventListener("submit", onAgregar);
   $id("actualizarForm").addEventListener("submit", onActualizar);
@@ -186,7 +168,6 @@ function init() {
   $id("btnReporte").addEventListener("click", onReporte);
 }
 
-/* arrancar cuando DOM esté listo */
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {

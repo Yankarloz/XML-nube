@@ -5,10 +5,6 @@ import xml.etree.ElementTree as ET
 from xml.dom.minidom import parseString
 import os
 
-# ==========================================================
-#   RUTA CORRECTA DEL XML (FUNCIONA EN WINDOWS Y RENDER)
-# ==========================================================
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 XML_FILE = os.path.join(BASE_DIR, "xml", "datos.xml")
 FRONT_DIR = os.path.join(BASE_DIR, "front")
@@ -18,12 +14,9 @@ def cargar_xml():
 
 
 def guardar_xml(tree):
-    # Use ElementTree.indent to produce consistent pretty XML without
-    # the extra blank lines/minidom artifacts. Write with XML declaration.
     try:
         ET.indent(tree, space="\t")
     except Exception:
-        # fallback: no-op if indent not available
         pass
     tree.write(XML_FILE, encoding="utf-8", xml_declaration=True)
 
@@ -32,7 +25,6 @@ def _safe_float(value):
     try:
         if value is None:
             return 0.0
-        # strip if it's a string
         if isinstance(value, str):
             value = value.strip()
             if value == "":
@@ -40,10 +32,6 @@ def _safe_float(value):
         return float(value)
     except Exception:
         return 0.0
-
-# ==========================================================
-#   CORS
-# ==========================================================
 
 class CORSWrapper(object):
     def __init__(self, app):
@@ -68,16 +56,12 @@ class CORSWrapper(object):
         return self.app(environ, cors_start_response)
 
 
-# ==========================================================
-#   SERVICIO SOAP
-# ==========================================================
 
 class CRUDService(ServiceBase):
 
     @rpc(_returns=Unicode)
     def listar(ctx):
         tree = cargar_xml()
-        # indent the tree for a consistent readable output
         try:
             ET.indent(tree, space="\t")
         except Exception:
@@ -175,14 +159,6 @@ class CRUDService(ServiceBase):
             pass
         return ET.tostring(reporte, encoding="unicode")
 
-
-# ==========================================================
-#   WSGI + FRONTEND
-# ==========================================================
-
-# -------------------------------------------------
-# SOAP Application
-# -------------------------------------------------
 application = Application(
     [CRUDService],
     "mi.soap.crud",
@@ -209,7 +185,6 @@ def static_proxy(path):
 
 soap_app = CORSWrapper(WsgiApplication(application))
 
-# Serve FRONTEND at / and SOAP under /soap
 app = DispatcherMiddleware(front, {
     "/soap": soap_app
 })

@@ -1,7 +1,5 @@
-/* Reset pequeño */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Variables */
 :root{
   --bg: #0f1724;
   --card: #0b1220;
@@ -17,7 +15,6 @@
   --text: #e6eef6;
 }
 
-/* Body */
 body{
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   background: linear-gradient(180deg, #07102a 0%, #07172e 100%);
@@ -28,7 +25,6 @@ body{
   min-height: 100vh;
 }
 
-/* Container */
 .container{
   max-width: var(--max-width);
   margin: 0 auto;
@@ -37,7 +33,6 @@ body{
   gap: 20px;
 }
 
-/* Header */
 .header{
   display:flex;
   flex-direction:column;
@@ -52,14 +47,12 @@ body{
   font-size:0.95rem;
 }
 
-/* Grid of forms */
 .grid{
   display:grid;
   grid-template-columns: repeat(3,1fr);
   gap: var(--gap);
 }
 
-/* Card */
 .card{
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
   border-radius: var(--radius);
@@ -68,17 +61,14 @@ body{
   box-shadow: 0 6px 18px rgba(2,6,23,0.6);
 }
 
-/* Actions card spans two columns on small screens */
 .actions{
   grid-column: span 1;
 }
 
-/* Responsive */
 @media (max-width: 920px){
   .grid{ grid-template-columns: 1fr; }
 }
 
-/* Inputs & Buttons */
 input{
   width:100%;
   display:block;
@@ -106,16 +96,13 @@ input::placeholder{ color: #6b7a86; }
 }
 .btn:active{ transform: translateY(1px); }
 
-/* Variants */
 .primary{ background: linear-gradient(90deg,var(--accent),var(--accent-2)); color:white; box-shadow: 0 6px 20px rgba(79,70,229,0.16); }
 .warning{ background: linear-gradient(90deg,#f59e0b,#f97316); color:white; }
 .danger{ background: var(--danger); color:white; }
 .outline{ background: transparent; color:var(--accent); border:1px solid rgba(79,70,229,0.12); }
 
-/* Button row */
 .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
 
-/* XML area */
 .xml-section{
   margin-top: 10px;
 }
@@ -132,11 +119,9 @@ textarea{
   resize:vertical;
 }
 
-/* Report visuals */
 .report{ margin-top:10px; background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.02); }
 .percent-list{ list-style:none; margin-top:8px; padding-left:0; display:flex; flex-direction:column; gap:6px; }
 .percent-list li{ background: rgba(255,255,255,0.02); padding:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; }
 
-/* Footer */
 .footer{ color:var(--muted); font-size:0.85rem; margin-top:10px; text-align:center; }
 code{ background: rgba(255,255,255,0.02); padding:4px 8px; border-radius:6px; font-size:0.9rem; color:var(--text); }
